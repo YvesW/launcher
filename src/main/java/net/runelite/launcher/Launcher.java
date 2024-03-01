@@ -75,6 +75,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.zip.GZIPInputStream;
 import javax.swing.SwingUtilities;
+
 import joptsimple.OptionException;
 import joptsimple.OptionParser;
 import joptsimple.OptionSet;
@@ -95,6 +96,7 @@ public class Launcher
 	private static final String USER_AGENT = "RuneLite/" + LauncherProperties.getVersion();
 	static final String LAUNCHER_EXECUTABLE_NAME_WIN = "RuneLite.exe";
 	static final String LAUNCHER_EXECUTABLE_NAME_OSX = "RuneLite";
+	private static boolean libLoaded;
 
 	public static void main(String[] args)
 	{
@@ -173,6 +175,17 @@ public class Launcher
 		}
 
 		initDll();
+
+		if (libLoaded)
+		{
+			System.out.println("LIB LOADED");
+			System.out.println("is running elevated: " + isRunningElevated());
+			log.info("is running elevated: " + isRunningElevated());
+		}
+		else
+		{
+			log.debug("Launcher native was not loaded, so skipping file permission checks.");
+		}
 
 		// RTSS triggers off of the CreateWindow event, so this needs to be in place early, prior to splash screen
 		initDllBlacklist();
@@ -904,6 +917,7 @@ public class Launcher
 		{
 			System.loadLibrary("launcher_" + arch);
 			log.debug("Loaded launcher native launcher_{}", arch);
+			libLoaded = true;
 		}
 		catch (Error ex)
 		{
@@ -931,6 +945,8 @@ public class Launcher
 			log.debug("Error setting dll blacklist", ex);
 		}
 	}
+
+	private static native boolean isRunningElevated();
 
 	private static native void setBlacklistedDlls(String[] dlls);
 
