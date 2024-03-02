@@ -12,6 +12,7 @@ RuneLite is [licensed under the BSD 2-clause license](https://github.com/runelit
 # BUILD INSTRUCTIONS
 Initial setup:
 - Install visual studio with the c++ stuff
+- Install cmake for windows
 - Clone detours to ``%userprofile%/source/repos``
 - Then you have to go ``tools`` > ``developer command line`` in visual studio with the c++ package installed because for some reason normal cmd does not work...
 - cd to ``detours/src``
