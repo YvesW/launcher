@@ -213,6 +213,7 @@ public class Launcher
 
 			// verify filesystem permissions after the fork launcher has run, so we don't verify perms twice
 			FilePermissionManager.verifyFixFilePerms();
+			FilePermissionManager.fixJagexLauncherLogin();
 
 			final Map<String, String> jvmProps = new LinkedHashMap<>();
 			if (settings.scale != null)

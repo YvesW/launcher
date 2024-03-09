@@ -513,4 +513,59 @@ public class FilePermissionManager
 		List<String> icaclsCommands = new ArrayList<>(Arrays.asList("icacls", dir));
 		runCmd(icaclsCommands);
 	}
+
+	static void fixJagexLauncherLogin()
+	{
+		if (!nativesLoaded)
+		{
+			log.debug("Launcher natives were not loaded. Skipping Jagex Launcher login check.");
+			return;
+		}
+
+		if (!isJagexLauncherChild() || !isRunningElevated() || isJagexLauncherElevated())
+		{
+			// not problematic if not running without the Jagex Launcher, if not running elevated,
+			// or if both the Jagex Launcher and RL Launcher are running with elevated permissions
+			return;
+		}
+
+		log.info("RuneLite is running with elevated permissions, while the Jagex Launcher is not.");
+		log.info("Deleting compatibility registry keys.");
+		deleteRegCompatKey("HKLM"); // all users
+		deleteRegCompatKey("HKCU"); // current user
+
+		okOptionPane("Compatibility settings problems detected",
+			"Running RuneLite with elevated permissions causes login problems when using the Jagex Launcher.\n"
+				+ "RuneLite has attempted to remedy the problem. Please relaunch RuneLite via the Jagex Launcher.",
+			true);
+	}
+
+	private static boolean isJagexLauncherElevated()
+	{
+		if (!isJagexLauncherChild())
+		{
+			return false;
+		}
+
+		ProcessHandle parent = ProcessHandle.current().parent().orElse(null);
+		if (parent != null)
+		{
+			boolean result = isRunningElevated(parent.pid());
+			log.info("Jagex Launcher is running with elevated permissions: " + result);
+			return result;
+		}
+		return false;
+	}
+
+	private static void deleteRegCompatKey(String rootKey)
+	{
+		String key = "\"" + rootKey + "\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\AppCompatFlags\\Layers\"";
+		String entry = ProcessHandle.current().info().command().orElse(null);
+		if (entry != null)
+		{
+			entry = "\"" + entry + "\"";
+			List<String> regCommands = new ArrayList<>(Arrays.asList("reg", "delete", key, "/v", entry, "/f"));
+			runCmd(regCommands);
+		}
+	}
 }
