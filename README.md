@@ -21,9 +21,10 @@ Initial setup:
 - Run ``VsDevCmd.bat -host_arch=amd64 -arch=amd64`` still in the developer command line
 - ``nmake``
 - Copy those two lib folders to ``launcher-fork\detours\``
+- Very likely put detous.h and detver.h from https://github.com/microsoft/Detours/tree/main/src into ``launcher-fork\detours\include\``
 - Install innosetup 6.2.2 and add it to your path
 
 Always:
 - run mvn install so it builds to target
-- run ``build_win86/64.sh`` with git bash by double clicking on it
+- run ``build_win32/64.sh`` with git bash by double clicking on it
 - Output can be found in the ``build`` folder. These are the files that normally get installed to ``AppData\Local\RuneLite`` The setup itself can be found in ``launcher-fork\RuneLiteSetup.exe``
