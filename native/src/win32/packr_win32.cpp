@@ -17,6 +17,8 @@
 #include <fcntl.h>
 #include <io.h>
 #include <windows.h>
+#include <wintrust.h>
+#include <softpub.h>
 
 #include <iostream>
 
@@ -102,15 +104,49 @@ int main(int argc, char** argv) {
     return 0;
 }
 
+static bool verifySignature(const wchar_t* path) {
+    WINTRUST_FILE_INFO file = {};
+    file.cbStruct = sizeof(file);
+    file.pcwszFilePath = path;
+
+    WINTRUST_DATA trust = {};
+    trust.cbStruct = sizeof(trust);
+    trust.dwUIChoice = WTD_UI_NONE;
+    trust.fdwRevocationChecks = WTD_REVOKE_NONE;
+    trust.dwUnionChoice = WTD_CHOICE_FILE;
+    trust.pFile = &file;
+    trust.dwStateAction = WTD_STATEACTION_VERIFY;
+
+    GUID action = WINTRUST_ACTION_GENERIC_VERIFY_V2;
+    LONG status = WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &action, &trust);
+
+    trust.dwStateAction = WTD_STATEACTION_CLOSE;
+    WinVerifyTrust(static_cast<HWND>(INVALID_HANDLE_VALUE), &action, &trust);
+
+    if (status != ERROR_SUCCESS) {
+        cerr << "Error: jvm.dll signature verification failed: 0x" << hex
+             << static_cast<unsigned long>(status) << dec << endl;
+        return false;
+    }
+    if (verbose) {
+        cout << "Verified jvm.dll signature." << endl;
+    }
+    return true;
+}
+
 bool loadJNIFunctions(GetDefaultJavaVMInitArgs* getDefaultJavaVMInitArgs, CreateJavaVM* createJavaVM) {
     if (!SetDllDirectory(TEXT("jre\\bin"))) {
         printLastError("SetDllDirectory");
         return false;
     }
 
-    LPCTSTR jvmDLLPath = TEXT("jre\\bin\\server\\jvm.dll");
+    const wchar_t* jvmDLLPath = L"jre\\bin\\server\\jvm.dll";
 
-    HINSTANCE hinstLib = LoadLibrary(jvmDLLPath);
+    if (!verifySignature(jvmDLLPath)) {
+        return false;
+    }
+
+    HINSTANCE hinstLib = LoadLibraryW(jvmDLLPath);
     if (hinstLib == nullptr) {
         printLastError("load jvm.dll");
         return false;
