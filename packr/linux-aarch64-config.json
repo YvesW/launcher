@@ -1,7 +1,4 @@
 {
-  "classPath": [
-    "RuneLite.jar"
-  ],
   "mainClass": "net.runelite.launcher.Launcher",
   "vmArgs": [
     "-Xmx768m",

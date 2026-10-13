@@ -38,6 +38,7 @@ extern const char __CLASS_PATH_DELIM;
 bool loadJNIFunctions(GetDefaultJavaVMInitArgs* getDefaultJavaVMInitArgs, CreateJavaVM* createJavaVM);
 const char* getExecutablePath(const char* argv0);
 bool changeWorkingDir(const char* directory);
+bool sha256File(const char* path, std::string& result);
 void packrSetEnv(const char* key, const char* value);
 #ifdef _WIN32
 std::string acpToUtf8(const char*);

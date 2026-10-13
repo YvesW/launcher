@@ -14,6 +14,9 @@
  * limitations under the License.
  ******************************************************************************/
 #include "packr.h"
+#if defined(_WIN32) || defined(__APPLE__)
+#include "jar_hash.h"
+#endif
 
 #include <dropt.h>
 #include <sajson.h>
@@ -35,7 +38,6 @@ static string configurationPath("config.json");
 static vector<string> cmdLineArgs;
 
 static vector<string> vmArgs;
-static vector<string> classPath;
 static string mainClassName;
 
 static sajson::document readConfigurationFile(string fileName) {
@@ -58,45 +60,6 @@ static bool hasJsonValue(sajson::value jsonObject, const char* key, sajson::type
 static sajson::value getJsonValue(sajson::value jsonObject, const char* key) {
     size_t index = jsonObject.find_object_key(sajson::literal(key));
     return jsonObject.get_object_value(index);
-}
-
-static vector<string> extractClassPath(const sajson::value& classPath) {
-    size_t count = classPath.get_length();
-    vector<string> paths;
-
-    for (size_t cp = 0; cp < count; cp++) {
-        string classPathURL = classPath.get_array_element(cp).as_string();
-
-        // TODO: don't just test for file extension
-        if (classPathURL.rfind(".txt") != classPathURL.length() - 4) {
-            paths.push_back(classPathURL);
-
-        } else {
-            ifstream txt(classPathURL.c_str());
-            string line;
-
-            while (!txt.eof()) {
-                txt >> line;
-
-                if (line.find("-classpath") == 0) {
-                    txt >> line;
-
-                    istringstream iss(line);
-                    string path;
-
-                    while (getline(iss, path, __CLASS_PATH_DELIM)) {
-                        paths.push_back(path);
-                    }
-
-                    break;
-                }
-            }
-
-            txt.close();
-        }
-    }
-
-    return paths;
 }
 
 string getExecutableDirectory(const char* executablePath) {
@@ -252,14 +215,6 @@ static void loadConfiguration() {
     }
 
     mainClassName = getJsonValue(jsonRoot, "mainClass").as_string();
-
-    if (!hasJsonValue(jsonRoot, "classPath", sajson::TYPE_ARRAY)) {
-        cerr << "Error: no 'classPath' array found in config!" << endl;
-        exit(EXIT_FAILURE);
-    }
-
-    sajson::value jsonClassPath = getJsonValue(jsonRoot, "classPath");
-    classPath = extractClassPath(jsonClassPath);
 }
 
 void launchJavaVM(LaunchJavaVMCallback callback) {
@@ -276,6 +231,18 @@ void launchJavaVM(LaunchJavaVMCallback callback) {
 
     // load configuration
     loadConfiguration();
+
+#if defined(_WIN32) || defined(__APPLE__)
+    string jarHash;
+    if (!sha256File("RuneLite.jar", jarHash)) {
+        cerr << "Error: failed to checksum RuneLite.jar!" << endl;
+        exit(EXIT_FAILURE);
+    }
+    if (jarHash != RUNELITE_JAR_SHA256) {
+        cerr << "Error: RuneLite.jar checksum mismatch!" << endl;
+        exit(EXIT_FAILURE);
+    }
+#endif
 
     // load JVM library, get function pointers
 
@@ -313,16 +280,6 @@ void launchJavaVM(LaunchJavaVMCallback callback) {
     size_t vmArgc = 0;
     JavaVMOption* options = new JavaVMOption[1 + vmArgs.size()];
 
-    string javaClassPath = "-Djava.class.path=";
-    for (unsigned int i = 0; i < classPath.size(); ++i) {
-        if (i > 0) {
-            javaClassPath.append(1, __CLASS_PATH_DELIM);
-        }
-        javaClassPath.append(classPath[i]);
-    }
-    options[vmArgc].optionString = strdup(javaClassPath.c_str());
-    options[vmArgc++].extraInfo = nullptr;
-
     for (const string& vmArgValue : vmArgs) {
         if (verbose) {
             cout << "  # " << vmArgValue << endl;
@@ -330,6 +287,9 @@ void launchJavaVM(LaunchJavaVMCallback callback) {
         options[vmArgc].optionString = strdup(vmArgValue.c_str());
         options[vmArgc++].extraInfo = nullptr;
     }
+
+    options[vmArgc].optionString = strdup("-Djava.class.path=RuneLite.jar");
+    options[vmArgc++].extraInfo = nullptr;
 
     assert(vmArgc == 1 + vmArgs.size());
 
